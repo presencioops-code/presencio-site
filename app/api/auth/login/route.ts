@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { issueSession, sessionCookie } from '@/lib/problemsolved/auth';
+import { issueSession, sessionCookie } from '../../../../lib/problemsolved/auth';
 import { z } from 'zod';
-
 const input = z.object({ email: z.string().email(), password: z.string().min(1) });
 export async function POST(req: Request) {
   const body = input.safeParse(await req.json().catch(() => null));
