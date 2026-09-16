@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireUser } from '@/lib/problemsolved/auth';
-import { db, logAudit } from '@/lib/problemsolved/db';
-import { totalScore, validateScore, type ScoreBreakdown } from '@/lib/problemsolved/types';
+import { requireUser } from '../../../lib/problemsolved/auth';
+import { db, logAudit } from '../../../lib/problemsolved/db';
+import { totalScore, validateScore, type ScoreBreakdown } from '../../../lib/problemsolved/types';
 
 const schema = z.object({
   problem:z.string().min(8), targetCustomer:z.string().min(3), severity:z.string().default('unknown'), currentWorkaround:z.string().optional(),
