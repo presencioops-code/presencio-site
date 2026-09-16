@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireUser } from '@/lib/problemsolved/auth';
-import { createJob, db, logAudit } from '@/lib/problemsolved/db';
-
+import { requireUser } from '../../../lib/problemsolved/auth';
+import { createJob, db, logAudit } from '../../../lib/problemsolved/db';
 const schema=z.object({agent:z.string().min(2).max(100),workflow:z.string().min(2).max(100),entityType:z.string().max(50).optional(),entityId:z.string().uuid().optional(),input:z.record(z.string(),z.unknown()).default({})});
 export async function GET(){try{await requireUser();const rows=await db()`SELECT id,agent,workflow,status,attempt,retry_count,started_at,completed_at,error,created_at FROM jobs ORDER BY created_at DESC LIMIT 100`;return NextResponse.json({jobs:rows});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Unknown error'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}}
 export async function POST(req:Request){try{const actor=await requireUser();const b=schema.safeParse(await req.json().catch(()=>null));if(!b.success)return NextResponse.json({error:b.error.issues},{status:400});const job=await createJob(b.data.agent,b.data.workflow,b.data.entityType??null,b.data.entityId??null,b.data.input);await logAudit(actor,'JOB_QUEUED','job',job.id,{agent:b.data.agent,workflow:b.data.workflow});return NextResponse.json(job,{status:202});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Unknown error'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}}
