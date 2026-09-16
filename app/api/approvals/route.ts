@@ -1,0 +1,8 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { requireUser } from '@/lib/problemsolved/auth';
+import { db, logAudit } from '@/lib/problemsolved/db';
+
+const decision=z.object({id:z.string().uuid(), status:z.enum(['APPROVED','REJECTED','CHANGES_REQUESTED']), notes:z.string().max(2000).optional()});
+export async function GET(){try{await requireUser();const rows=await db()`SELECT a.id,a.gate,a.entity_type,a.entity_id,a.status,a.created_at,o.problem,p.title FROM approvals a LEFT JOIN opportunities o ON a.entity_type='opportunity' AND a.entity_id=o.id LEFT JOIN products p ON a.entity_type='product' AND a.entity_id=p.id WHERE a.status='PENDING' ORDER BY a.created_at ASC`;return NextResponse.json({approvals:rows});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Unknown error'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}}
+export async function POST(req:Request){try{const actor=await requireUser();const b=decision.safeParse(await req.json().catch(()=>null));if(!b.success)return NextResponse.json({error:b.error.issues},{status:400});const rows=await db()`UPDATE approvals SET status=${b.data.status},decided_by=${actor},decision_notes=${b.data.notes??null},updated_at=now() WHERE id=${b.data.id} AND status='PENDING' RETURNING *`;if(!rows[0])return NextResponse.json({error:'Approval not found or already decided'},{status:409});await logAudit(actor,`APPROVAL_${b.data.status}`,rows[0].entity_type,rows[0].entity_id,{gate:rows[0].gate,notes:b.data.notes??null});return NextResponse.json(rows[0]);}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Unknown error'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}}
